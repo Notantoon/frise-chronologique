@@ -7,11 +7,13 @@ import {
   Circle,
   AlignLeft,
   AlignJustify,
+  Layers,
 } from 'lucide-react'
 import type { Profile, TimelineEvent, DisplayMode } from '../types'
 import { TimelineCanvas } from './TimelineCanvas'
 import { EventModal } from './EventModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
+import { FlashcardMode } from './FlashcardMode'
 
 interface Props {
   profile: Profile
@@ -35,11 +37,24 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TimelineEvent | null>(null)
+  const [showFlashcards, setShowFlashcards] = useState(false)
+
+  // ── Mode flashcards ────────────────────────────────────────────────────────
+  if (showFlashcards) {
+    return (
+      <FlashcardMode
+        events={events}
+        profileName={profile.name}
+        onBack={() => setShowFlashcards(false)}
+      />
+    )
+  }
 
   const filteredEvents = searchQuery.trim()
-    ? events.filter((e) =>
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.date_label.toLowerCase().includes(searchQuery.toLowerCase())
+    ? events.filter(
+        (e) =>
+          e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.date_label.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : events
 
@@ -79,7 +94,6 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
         </button>
 
         {showSearch ? (
-          /* Barre de recherche */
           <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
             <Search size={13} className="text-slate-400 flex-shrink-0" />
             <input
@@ -98,13 +112,9 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
             </button>
           </div>
         ) : (
-          /* Titre + actions */
           <>
-            <h2 className="flex-1 font-bold text-slate-800 text-sm truncate">
-              {profile.name}
-            </h2>
+            <h2 className="flex-1 font-bold text-slate-800 text-sm truncate">{profile.name}</h2>
 
-            {/* Bouton recherche */}
             <button
               onClick={() => setShowSearch(true)}
               className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400"
@@ -113,7 +123,17 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
               <Search size={15} />
             </button>
 
-            {/* Sélecteur de mode d'affichage */}
+            {/* Bouton Flashcards */}
+            <button
+              onClick={() => setShowFlashcards(true)}
+              disabled={events.length === 0}
+              className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Mode flashcards"
+            >
+              <Layers size={15} />
+            </button>
+
+            {/* Mode d'affichage */}
             <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
               {DISPLAY_MODES.map(({ mode, icon, label }) => (
                 <button
@@ -133,7 +153,6 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
           </>
         )}
 
-        {/* Bouton Ajouter */}
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-1.5 px-3 py-2 bg-indigo-500 text-white text-sm font-medium rounded-xl hover:bg-indigo-600 transition-colors flex-shrink-0"
@@ -143,7 +162,7 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
         </button>
       </div>
 
-      {/* Bandeau résultats de recherche */}
+      {/* Bandeau recherche */}
       {searchQuery.trim() && (
         <div className="px-4 py-1.5 text-xs text-indigo-600 bg-indigo-50 border-b border-indigo-100 flex-shrink-0">
           {filteredEvents.length === 0
@@ -161,17 +180,21 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
         />
       </div>
 
-      {/* Compteur en bas */}
+      {/* Barre du bas */}
       <div className="bg-white border-t border-slate-100 px-4 py-2 flex-shrink-0 flex items-center justify-between">
         <span className="text-xs text-slate-400">
           {events.length} événement{events.length !== 1 ? 's' : ''}
         </span>
-        <span className="text-xs text-slate-300">
-          {DISPLAY_MODES.find((d) => d.mode === displayMode)?.label}
-        </span>
+        <button
+          onClick={() => setShowFlashcards(true)}
+          disabled={events.length === 0}
+          className="text-xs text-indigo-400 hover:text-indigo-600 font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
+        >
+          <Layers size={11} />
+          Flashcards
+        </button>
       </div>
 
-      {/* Modal Ajout */}
       {showAddModal && (
         <EventModal
           profileId={profile.id}
@@ -180,7 +203,6 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
         />
       )}
 
-      {/* Modal Modification */}
       {editingEvent && (
         <EventModal
           profileId={profile.id}
@@ -191,7 +213,6 @@ export function Timeline({ profile, events, onBack, onAddEvent, onUpdateEvent, o
         />
       )}
 
-      {/* Modal Suppression */}
       {deleteTarget && (
         <DeleteConfirmModal
           title={deleteTarget.title}

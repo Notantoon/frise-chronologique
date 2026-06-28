@@ -10,8 +10,10 @@ export interface Profile {
 export interface TimelineEvent {
   id: string
   profile_id: string
-  year: number          // Année pour le positionnement (ex: 1789)
-  date_label: string    // Texte affiché (ex: "14 juillet 1789")
+  year: number           // Année pour le positionnement (ex: 1789)
+  month?: number         // Mois optionnel 1-12 (affine la position sur l'axe)
+  day?: number           // Jour optionnel 1-31 (affine encore plus)
+  date_label: string     // Texte affiché (ex: "14 juillet 1789")
   title: string
   description?: string
   color: string

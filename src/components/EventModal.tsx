@@ -1,8 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import type { TimelineEvent } from '../types'
 import { EVENT_COLORS } from '../types'
 
+// ─── Helpers date ─────────────────────────────────────────────────────────────
+const MONTH_SHORT = [
+  'jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+]
+
+const MONTHS = [
+  { v: 1, l: 'Janvier' }, { v: 2, l: 'Février' }, { v: 3, l: 'Mars' },
+  { v: 4, l: 'Avril' }, { v: 5, l: 'Mai' }, { v: 6, l: 'Juin' },
+  { v: 7, l: 'Juillet' }, { v: 8, l: 'Août' }, { v: 9, l: 'Septembre' },
+  { v: 10, l: 'Octobre' }, { v: 11, l: 'Novembre' }, { v: 12, l: 'Décembre' },
+]
+
+function buildDateLabel(year: number, month?: number, day?: number): string {
+  if (!year || isNaN(year)) return ''
+  if (!month) return `${year}`
+  const m = MONTH_SHORT[month - 1]
+  if (!day) return `${m} ${year}`
+  return `${day} ${m} ${year}`
+}
+
+// ─── Composant ────────────────────────────────────────────────────────────────
 interface Props {
   profileId: string
   event?: TimelineEvent
@@ -12,15 +34,37 @@ interface Props {
 }
 
 export function EventModal({ profileId, event, onSave, onClose, onDelete }: Props) {
+  const isEdit = Boolean(event)
+
   const [year, setYear] = useState(event?.year?.toString() ?? '')
+  const [month, setMonth] = useState<number | undefined>(event?.month)
+  const [day, setDay] = useState<number | undefined>(event?.day)
   const [dateLabel, setDateLabel] = useState(event?.date_label ?? '')
+  // Pour les événements existants, on ne touche pas au label sauf si on change les champs date
+  const [manualLabel, setManualLabel] = useState(isEdit)
   const [title, setTitle] = useState(event?.title ?? '')
   const [description, setDescription] = useState(event?.description ?? '')
   const [color, setColor] = useState(event?.color ?? EVENT_COLORS[0])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const isEdit = Boolean(event)
+  // Auto-remplissage du label de date
+  useEffect(() => {
+    if (manualLabel) return
+    const y = parseInt(year, 10)
+    setDateLabel(buildDateLabel(y, month, day))
+  }, [year, month, day, manualLabel])
+
+  const handleMonthChange = (val: number | undefined) => {
+    setMonth(val)
+    if (!val) setDay(undefined)
+    setManualLabel(false)
+  }
+
+  const handleDayChange = (val: number | undefined) => {
+    setDay(val)
+    setManualLabel(false)
+  }
 
   const handleSave = async () => {
     const yearNum = parseInt(year, 10)
@@ -32,6 +76,10 @@ export function EventModal({ profileId, event, onSave, onClose, onDelete }: Prop
       setError('Le titre est obligatoire')
       return
     }
+    if (day && !month) {
+      setError('Sélectionne un mois avant le jour')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -39,6 +87,8 @@ export function EventModal({ profileId, event, onSave, onClose, onDelete }: Prop
       await onSave({
         profile_id: profileId,
         year: yearNum,
+        month,
+        day,
         date_label: dateLabel.trim() || year,
         title: title.trim(),
         description: description.trim() || undefined,
@@ -79,8 +129,8 @@ export function EventModal({ profileId, event, onSave, onClose, onDelete }: Prop
 
         {/* Formulaire */}
         <div className="px-5 py-4 space-y-4">
-          {/* Année + Date affichée */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Ligne date : Année | Mois | Jour */}
+          <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">
                 Année <span className="text-indigo-400">*</span>
@@ -88,28 +138,63 @@ export function EventModal({ profileId, event, onSave, onClose, onDelete }: Prop
               <input
                 type="number"
                 value={year}
-                onChange={(e) => { setYear(e.target.value); setError('') }}
+                onChange={(e) => { setYear(e.target.value); setError(''); setManualLabel(false) }}
                 onKeyDown={handleKeyDown}
-                placeholder="1789"
+                placeholder="1914"
                 min={1700}
                 max={2030}
                 autoFocus
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all"
+                className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                Date affichée
-              </label>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Mois</label>
+              <select
+                value={month ?? ''}
+                onChange={(e) => handleMonthChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                className="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all bg-white appearance-none"
+              >
+                <option value="">—</option>
+                {MONTHS.map((m) => (
+                  <option key={m.v} value={m.v}>{m.l.slice(0, 3)}.</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Jour</label>
               <input
-                type="text"
-                value={dateLabel}
-                onChange={(e) => setDateLabel(e.target.value)}
+                type="number"
+                value={day ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value ? parseInt(e.target.value, 10) : undefined
+                  handleDayChange(v && v >= 1 && v <= 31 ? v : undefined)
+                }}
                 onKeyDown={handleKeyDown}
-                placeholder="14 juil. 1789"
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all"
+                placeholder="14"
+                min={1}
+                max={31}
+                disabled={!month}
+                className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               />
             </div>
+          </div>
+
+          {/* Label affiché (auto-rempli) */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+              Date affichée
+              <span className="ml-1 text-slate-300 font-normal">(auto-remplie)</span>
+            </label>
+            <input
+              type="text"
+              value={dateLabel}
+              onChange={(e) => { setDateLabel(e.target.value); setManualLabel(true) }}
+              onKeyDown={handleKeyDown}
+              placeholder="ex : 28 juil. 1914"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all"
+            />
           </div>
 
           {/* Titre */}
@@ -122,16 +207,14 @@ export function EventModal({ profileId, event, onSave, onClose, onDelete }: Prop
               value={title}
               onChange={(e) => { setTitle(e.target.value); setError('') }}
               onKeyDown={handleKeyDown}
-              placeholder="Prise de la Bastille"
+              placeholder="Déclaration de guerre de l'Autriche"
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition-all"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">
-              Description
-            </label>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -154,10 +237,8 @@ export function EventModal({ profileId, event, onSave, onClose, onDelete }: Prop
                   style={{
                     backgroundColor: c,
                     transform: color === c ? 'scale(1.25)' : undefined,
-                    boxShadow:
-                      color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : undefined,
+                    boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : undefined,
                   }}
-                  title={c}
                 />
               ))}
             </div>
